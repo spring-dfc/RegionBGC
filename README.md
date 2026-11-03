@@ -70,10 +70,7 @@ python tools/train.py \
 ```
 
 Each epoch saves prediction weights; `resume_latest.pth` supports resuming training
-with `--resume`. Settings are in `configs/regionbgc/regionbgc.yml`.
-For ESM2-8M training, use `-c configs/regionbgc/regionbgc_esm2.yml`
-and provide 320-dimensional ESM2 feature files.
-
+with `--resume`. 
 ## License
 
 [Apache-2.0](LICENSE).
