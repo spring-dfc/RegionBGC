@@ -5,7 +5,6 @@ output_dir: ./outputs/training_esm2
 MultiScalePooling: {in_ch: 320}
 MultiScaleRegionFeatureEncoder: {in_channels: [320, 320, 320]}
 RegionBGCCriterion: {gamma: 2.5}
-optimizer: {weight_decay: 0.0}
 lr_scheduler: {milestones: [16]}
 
 train_dataloader:
