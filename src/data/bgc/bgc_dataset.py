@@ -6,12 +6,12 @@ import torch
 from torch.utils.data import Dataset
 
 from src.core import register
-from utils.bgc_labels import parse_binary_labels
-from utils.bgc_data import sample_orf_ids
+from src.utils.bgc_labels import parse_binary_labels
+from src.utils.bgc_data import sample_orf_ids
 
-# Optional dependency from the project-level utils
+# Shared HDF5 features.
 try:
-    from utils.shared_features import create_shared_features_manager, SharedFeaturesManager
+    from src.utils.shared_features import create_shared_features_manager, SharedFeaturesManager
 except Exception:  # pragma: no cover
     create_shared_features_manager = None
     SharedFeaturesManager = None
@@ -159,7 +159,7 @@ class RegionBGCDataset(Dataset):
         self.features_manager: Optional[SharedFeaturesManager] = None
         if self.use_features:
             if create_shared_features_manager is None:
-                raise ImportError("utils.shared_features is required for use_features=True")
+                raise ImportError("src.utils.shared_features is required for use_features=True")
             if features_files is None:
                 raise ValueError("features_files must be provided when use_features=True")
             self.features_manager = create_shared_features_manager(features_files)

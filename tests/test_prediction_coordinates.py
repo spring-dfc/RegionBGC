@@ -16,7 +16,7 @@ from src.predict.prepare_dataset import build_samples_from_fasta
 from src.data.bgc.bgc_dataset import RegionBGCDataset
 from src.evaluation.test_evaluator import _InMemoryRegionBGCDataset
 from tools.extract_features.extract_features import iter_unique_orfs
-from utils.bgc_data import sample_orf_ids
+from src.utils.bgc_data import sample_orf_ids
 from src.predict.predictor import (
     _resolve_eval_thresholds,
     build_orf_position_map,

@@ -15,7 +15,7 @@ from src.models.encoder import RepVGGBlock
 from src.models.interval_ops import validate_interval_checkpoint
 from src.models.loading import load_evaluation_checkpoint
 from src.models.postprocessor import RegionBGCPostProcessor
-from utils.bgc_inference import predict_valid_sequences
+from src.utils.bgc_inference import predict_valid_sequences
 
 ROOT = Path(__file__).resolve().parents[1]
 CONFIG = ROOT / 'configs/regionbgc/regionbgc.yml'

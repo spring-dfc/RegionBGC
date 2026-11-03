@@ -5,8 +5,8 @@ from typing import Dict, List, Optional
 
 import torch
 from torch.utils.data import Dataset
-from utils.bgc_labels import parse_binary_labels
-from utils.bgc_data import sample_orf_ids
+from src.utils.bgc_labels import parse_binary_labels
+from src.utils.bgc_data import sample_orf_ids
 
 
 def _load_json_list(path: str) -> List[Dict]:

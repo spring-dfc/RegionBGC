@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 import numpy as np
-from utils.bgc_labels import parse_binary_labels
+from src.utils.bgc_labels import parse_binary_labels
 
 
 BGC_TYPE_VOCAB = ("PKS", "NRPS", "RiPP", "saccharide", "terpene", "other")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import Dict, List, Optional, Tuple
-from utils.bgc_labels import parse_binary_labels
+from src.utils.bgc_labels import parse_binary_labels
 
 
 

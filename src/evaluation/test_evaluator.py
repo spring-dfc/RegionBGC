@@ -19,12 +19,12 @@ from src.data.bgc.bgc_dataset import (
     _segments_from_binary_labels,
     bgc_collate_fn,
 )
-from utils.bgc_genome import base_genome_id
+from src.utils.bgc_genome import base_genome_id
 from src.metrics.regions import compute_bp_region_metrics
 from src.metrics.gene import compute_gene_metrics
 from src.metrics.classification import compute_multilabel_micro_metrics
-from utils.bgc_labels import parse_binary_labels
-from utils.bgc_data import sample_orf_ids
+from src.utils.bgc_labels import parse_binary_labels
+from src.utils.bgc_data import sample_orf_ids
 
 
 def _load_labeled_samples(data_file: str) -> List[Dict[str, Any]]:

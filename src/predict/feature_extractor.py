@@ -17,7 +17,7 @@ if str(REPO_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_DIR))
 
 from src.predict.memory_features import InMemoryFeaturesManager
-from utils.bgc_data import sample_orf_ids
+from src.utils.bgc_data import sample_orf_ids
 
 DEFAULT_ESMC_MODEL_PATH = REPO_DIR / "weights" / "esmc_300m_2024_12_v0.pth"
 

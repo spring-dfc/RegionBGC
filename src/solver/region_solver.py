@@ -20,8 +20,8 @@ from src.metrics.regions import (
     compute_interval_prf_at_score, normalize_pred_segments,
 )
 from src.metrics.classification import compute_multilabel_micro_metrics
-from utils.shared_features import create_shared_features_manager
-from utils.bgc_inference import predict_valid_sequences
+from src.utils.shared_features import create_shared_features_manager
+from src.utils.bgc_inference import predict_valid_sequences
 from src.models.matcher import match_queries_by_hungarian
 
 from .train_engine import train_one_epoch

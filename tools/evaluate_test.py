@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.predict.feature_extractor import extract_features_in_memory
 from src.predict.prepare_dataset import convert_fasta_file_to_dataset
 from src.predict.predictor import run_prediction
-from utils.bgc_inference import probability_threshold
+from src.utils.bgc_inference import probability_threshold
 from src.evaluation import evaluate_deployed_localization, evaluate_product_types, evaluate_region_output
 
 DEFAULT_CONFIG = PROJECT_ROOT / "configs" / "regionbgc" / "regionbgc.yml"

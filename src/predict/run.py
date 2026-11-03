@@ -34,7 +34,7 @@ from src.predict.input_preparation import (
 from src.predict.plot_bgc_predictions import plot_bgc_predictions
 from src.predict.predictor import DEFAULT_DETECTION_THRESHOLD, load_prediction_runtime, run_prediction
 from src.predict.prepare_dataset import convert_fasta_file_to_dataset
-from utils.bgc_inference import probability_threshold
+from src.utils.bgc_inference import probability_threshold
 
 
 USER_DEFAULTS = {

@@ -74,27 +74,6 @@ with `--resume`. Settings are in `configs/regionbgc/regionbgc.yml`.
 For ESM2-8M training, use `-c configs/regionbgc/regionbgc_esm2.yml`
 and provide 320-dimensional ESM2 feature files.
 
-## Evaluation
-
-```bash
-python tools/evaluate_test.py type --data data/test.json
-python tools/evaluate_test.py regions \
-  --predictions /path/to/orf_predictions.tsv --truth-data data/test_new.json
-```
-
-Product classification uses the training Hungarian matcher and reports micro-Precision,
-micro-Recall, micro-F1, and micro-AUROC on matched pairs, with a classification
-default threshold of 0.5 (adjustable with `--type-threshold`). Matching has no
-detection-score or IoU cutoff; coverage is reported separately.
-
-
-Metric functions are in `src/metrics/`: `gene.py` for gene-level localization,
-`regions.py` for region-level localization, and `classification.py` for multilabel
-product classification.
-Independent region evaluation uses the TSV `Pred` column and JSON `orf_positions`
-(inclusive nucleotide coordinates), with IoU cutoffs of 0.3 and 0.5. Avg. IoU uses
-all positive-overlap one-to-one pairs. Training validation uses ORF-index intervals.
-
 ## License
 
 [Apache-2.0](LICENSE).

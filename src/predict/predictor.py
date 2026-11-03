@@ -21,11 +21,11 @@ if str(REPO_DIR) not in sys.path:
     sys.path.insert(0, str(REPO_DIR))
 
 from src.predict.dataset import PredictionDataset, collate_prediction_batch
-from utils.bgc_data import sample_orf_ids
-from utils.bgc_inference import probability_threshold
+from src.utils.bgc_data import sample_orf_ids
+from src.utils.bgc_inference import probability_threshold
 from src.core import YAMLConfig
 from src.models.loading import load_evaluation_checkpoint
-from utils.bgc_region_consensus import build_genome_consensus, update_genome_context
+from src.utils.bgc_region_consensus import build_genome_consensus, update_genome_context
 
 
 def _yaml_dict(cfg: YAMLConfig) -> Dict:

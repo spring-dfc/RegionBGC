@@ -22,7 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.predict.feature_extractor import DEFAULT_ESMC_MODEL_PATH, load_esmc_model
-from utils.bgc_data import sample_orf_ids
+from src.utils.bgc_data import sample_orf_ids
 
 
 OrfRecord = Tuple[str, str]
