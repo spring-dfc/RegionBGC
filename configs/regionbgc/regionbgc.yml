@@ -1,0 +1,36 @@
+__include__:
+  - ../dataset/bgc_regions.yml
+  - ../runtime.yml
+  - ./include/optimizer.yml
+  - ./include/model.yml
+
+output_dir: ./outputs/training
+seed: 6
+log_step: 50
+epoches: 40
+
+train_dataloader:
+  batch_size: 32
+  num_workers: 0
+
+val_dataloader:
+  batch_size: 32
+  num_workers: 0
+
+bgc_eval:
+  enable: true
+  threshold: 0.3
+  overlap_ratio: 0.5
+  dataloader:
+    batch_size: 32
+    num_workers: 0
+    pin_memory: true
+    persistent_workers: false
+    prefetch_factor: null
+  interval_score_thr: 0.3
+  interval_iou_thr: 0.75
+  interval_topk: 150
+  eval_val: true
+  early_stopping:
+    enable: true
+    patience: 10

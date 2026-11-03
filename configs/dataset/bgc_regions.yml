@@ -1,0 +1,38 @@
+num_classes: 1
+
+train_dataloader:
+  type: DataLoader
+  dataset:
+    type: RegionBGCDataset
+    # Relative to the RegionBGC repository; override with --train-data/features.
+    data_file: ./data/train.json
+    max_orfs: 128
+    features_files: [./data/train.h5]
+    use_features: true
+    class_id: 0
+  shuffle: true
+  batch_size: 32
+  num_workers: 0
+  pin_memory: true
+  persistent_workers: false
+  prefetch_factor: null
+  drop_last: true
+  collate_fn: {type: bgc_collate_fn}
+
+val_dataloader:
+  type: DataLoader
+  dataset:
+    type: RegionBGCDataset
+    data_file: ./data/validation.json
+    max_orfs: 128
+    features_files: [./data/validation.h5]
+    use_features: true
+    class_id: 0
+  shuffle: false
+  batch_size: 32
+  num_workers: 0
+  pin_memory: true
+  persistent_workers: false
+  prefetch_factor: null
+  drop_last: false
+  collate_fn: {type: bgc_collate_fn}

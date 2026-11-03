@@ -1,0 +1,41 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.orig
+*.log
+outputs/
+evaluation_results/
+docs/superpowers/
+tests/test_data/
+data/train*.json
+data/validation*.json
+data/train*.h5
+data/validation*.h5
+data/best_box_f1.pth
+
+# Local datasets, third-party weights, and generated artifacts.
+/data/*
+!/data/.gitkeep
+/weights/*
+!/weights/.gitkeep
+*.h5
+*.hdf5
+*.ckpt
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Cluster-specific notes are kept locally.
+/activate.sh
+/RegionBGC使用说明.md
+
+# Paper-specific similarity and sensitivity analyses stay local.
+/tools/dereplication/
+/tests/test_type_sensitivity.py

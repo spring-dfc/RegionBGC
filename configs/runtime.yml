@@ -1,0 +1,14 @@
+clip_max_norm: 0.1
+sync_bn: true
+find_unused_parameters: true
+
+use_amp: false
+scaler:
+  type: GradScaler
+  enabled: true
+
+use_ema: true
+ema:
+  type: ModelEMA
+  decay: 0.9999
+  warmups: 2000
