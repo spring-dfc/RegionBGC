@@ -65,7 +65,7 @@ saving features as `test.h5` or `test_9genomes.h5`, respectively.
 
 ```bash
 python tools/train.py \
-  -c configs/regionbgc/regionbgc.yml --seed 6 \
+  -c configs/regionbgc/regionbgc.yml \
   --train-data data/train.json --train-features data/train.h5 \
   --val-data data/validation.json --val-features data/validation.h5 \
   --output-dir outputs/training
