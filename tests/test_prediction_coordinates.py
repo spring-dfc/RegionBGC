@@ -331,6 +331,96 @@ class NucleotideRegionMetricTests(unittest.TestCase):
                 evaluate_region_output(prediction_file=str(predictions), truth_file=str(truth))
 
 
+class JsonLocalizationEvaluationTests(unittest.TestCase):
+    def test_json_prediction_is_shared_by_gene_and_region_metrics(self):
+        from unittest.mock import Mock
+        from src.evaluation.test_evaluator import evaluate_deployed_localization
+        samples = [
+            {'genome_id': 'a', 'orf_sequences': {'z': 'MK', 'a': 'MA'},
+             'bgc_labels': [1, 0], 'orf_positions': [[1, 10], [11, 20]]},
+            {'genome_id': 'b', 'orf_sequences': {'b': 'ML', 'c': 'MG'},
+             'bgc_labels': [1, 1], 'orf_positions': [[100, 109], [110, 119]]},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'test_9genomes.json'; data.write_text(json.dumps(samples))
+            predictions = root / 'orf_predictions.tsv'
+            predictions.write_text('ORF_ID\tProb\tPred\nc\t0.1\t0\nz\t0.9\t1\nb\t0.7\t1\na\t0.1\t0\n')
+            manager = SimpleNamespace(get_stats=lambda: {'total_features': 4, 'embedding_dim': 960})
+            extract = Mock(return_value=(manager, {}))
+            predict = Mock(return_value={'orf_txt_path': str(predictions)})
+            before = data.read_bytes()
+            metrics, counts, provenance = evaluate_deployed_localization(
+                data_file=str(data), config='model.yml', checkpoint='model.pth',
+                esmc_checkpoint='esmc.pth', work_dir=str(root / 'work'),
+                extract_features=extract, run_prediction=predict, device='cpu',
+            )
+            extract.assert_called_once(); predict.assert_called_once()
+            self.assertEqual(extract.call_args.kwargs['input_json'], str(data))
+            self.assertEqual(predict.call_args.kwargs['test_file'], str(data))
+            self.assertEqual(predict.call_args.kwargs['threshold'], .3)
+            self.assertEqual(counts, {'genomes': 2, 'fragments': 2, 'orfs': 4, 'tp': 2, 'fp': 0, 'fn': 1})
+            self.assertAlmostEqual(metrics['f1'], .8)
+            for cutoff in ('0.3', '0.5'):
+                self.assertEqual(provenance['region_metrics'][cutoff]['f1'], 1.)
+                self.assertEqual(provenance['region_metrics'][cutoff]['avg_iou'], .75)
+            self.assertEqual(before, data.read_bytes())
+            self.assertFalse((root / 'work/prediction_dataset.json').exists())
+
+    def test_invalid_json_labels_coordinates_and_duplicate_ids_fail_before_extraction(self):
+        from unittest.mock import Mock
+        from src.evaluation.test_evaluator import evaluate_deployed_localization
+        sample = {'genome_id': 'a', 'orf_sequences': {'a': 'MK'},
+                  'bgc_labels': [1], 'orf_positions': [[1, 9]]}
+        cases = [[dict(sample, bgc_labels=[2])], [dict(sample, orf_positions=[])],
+                 [sample, dict(sample, genome_id='b')], []]
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory) / 'data.json'
+            for samples in cases:
+                data.write_text(json.dumps(samples))
+                extract, predict = Mock(), Mock()
+                with self.assertRaises(ValueError):
+                    evaluate_deployed_localization(
+                        data_file=str(data), config='model.yml', checkpoint='model.pth',
+                        esmc_checkpoint='esmc.pth', work_dir=str(Path(directory) / 'work'),
+                        extract_features=extract, run_prediction=predict, device='cpu',
+                    )
+                extract.assert_not_called(); predict.assert_not_called()
+
+    def test_cli_accepts_json_and_reports_both_levels(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        from unittest.mock import patch
+        from tools import evaluate_test
+        gene = dict(precision=.9, recall=.8, f1=.8470588, auroc=.95)
+        regions = {str(c): dict(precision=.8, recall=.7, f1=.7466667, avg_iou=.85)
+                   for c in (.3, .5)}
+        provenance = {'features': {'total_features': 4, 'embedding_dim': 960},
+                      'prediction_outputs': {}, 'region_metrics': regions,
+                      'region_counts': {'samples': 1, 'orfs': 4}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data, weights, esmc = root / 'test_9genomes.json', root / 'weights.pth', root / 'esmc.pth'
+            for path in (data, weights, esmc): path.touch()
+            report = root / 'metrics.json'
+            argv = ['evaluate_test.py', 'localization', '--data', str(data),
+                    '--checkpoint', str(weights), '--esmc-checkpoint', str(esmc),
+                    '--device', 'cpu', '--threshold', '.4', '--type-threshold', '.65',
+                    '--output-json', str(report)]
+            output = StringIO()
+            with patch('sys.argv', argv), redirect_stdout(output), \
+                 patch.object(evaluate_test, 'evaluate_deployed_localization',
+                              return_value=(gene, {'orfs': 4}, provenance)) as evaluate:
+                evaluate_test.main()
+            self.assertEqual(evaluate.call_args.kwargs['data_file'], str(data))
+            self.assertEqual(evaluate.call_args.kwargs['threshold'], .4)
+            self.assertEqual(evaluate.call_args.kwargs['type_threshold'], .65)
+            self.assertIn('Nucleotide regions (IoU=0.3)', output.getvalue())
+            self.assertIn('Nucleotide regions (IoU=0.5)', output.getvalue())
+            self.assertEqual(json.loads(report.read_text())['region_metrics'], regions)
+            self.assertEqual(evaluate_test.build_parser().parse_args(argv[1:]).data, str(data))
+
+
 class PredictionWorkflowTests(unittest.TestCase):
     def test_cli_controls_and_explicit_checkpoint_selection(self):
         from contextlib import redirect_stderr

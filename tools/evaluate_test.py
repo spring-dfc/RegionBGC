@@ -16,7 +16,6 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from src.predict.feature_extractor import extract_features_in_memory
-from src.predict.prepare_dataset import convert_fasta_file_to_dataset
 from src.predict.predictor import run_prediction
 from src.utils.bgc_inference import probability_threshold
 from src.evaluation import evaluate_deployed_localization, evaluate_product_types, evaluate_region_output
@@ -58,9 +57,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("task", choices=["localization", "type", "regions"])
     parser.add_argument("--config", default=str(DEFAULT_CONFIG))
     parser.add_argument("--checkpoint", default=str(DEFAULT_CHECKPOINT))
-    parser.add_argument("--data", default=None, help="Labeled product-type JSON")
-    parser.add_argument("--faa-dir", default=None, help="Protein FASTA localization input")
-    parser.add_argument("--truth-data", default=None, help="Localization truth JSON")
+    parser.add_argument("--data", default=None, help="Labeled protein JSON for localization or product classification")
+    parser.add_argument("--truth-data", default=None, help="Truth JSON for evaluating an existing prediction TSV")
     parser.add_argument("--predictions", help="ORF prediction TXT/TSV for nucleotide-region evaluation")
     parser.add_argument("--esmc-checkpoint", default=str(DEFAULT_ESMC))
     parser.add_argument("--toks-per-batch", type=int, default=2560)
@@ -106,23 +104,12 @@ def main() -> None:
             option = path_name.replace("_", "-")
             raise FileNotFoundError(f"--{option} does not exist: {path}")
         setattr(args, path_name, str(path))
-    if args.task == "localization":
-        if not args.faa_dir or not args.truth_data:
-            raise ValueError("Localization evaluation requires --faa-dir and --truth-data")
-        faa_dir = Path(args.faa_dir).expanduser().resolve()
-        truth_data = Path(args.truth_data).expanduser().resolve()
-        if not faa_dir.is_dir():
-            raise FileNotFoundError(f"--faa-dir does not exist: {faa_dir}")
-        if not truth_data.is_file():
-            raise FileNotFoundError(f"--truth-data does not exist: {truth_data}")
-        args.faa_dir, args.truth_data = str(faa_dir), str(truth_data)
-    else:
-        if not args.data:
-            raise ValueError("Product-type evaluation requires --data")
-        data = Path(args.data).expanduser().resolve()
-        if not data.is_file():
-            raise FileNotFoundError(f"--data does not exist: {data}")
-        args.data = str(data)
+    if not args.data:
+        raise ValueError(f"{args.task} evaluation requires --data")
+    data = Path(args.data).expanduser().resolve()
+    if not data.is_file():
+        raise FileNotFoundError(f"--data does not exist: {data}")
+    args.data = str(data)
     device = _device(args.device)
     output_path = Path(args.output_json).expanduser().resolve() if args.output_json else None
     print(f"Checkpoint: {args.checkpoint}")
@@ -138,12 +125,10 @@ def main() -> None:
         metrics, counts, provenance = evaluate_deployed_localization(
             config=args.config,
             checkpoint=args.checkpoint,
-            faa_dir=args.faa_dir,
-            truth_file=args.truth_data,
+            data_file=args.data,
             esmc_checkpoint=args.esmc_checkpoint,
             work_dir=str(work_dir),
             extract_features=extract_features_in_memory,
-            converter=convert_fasta_file_to_dataset,
             run_prediction=run_prediction,
             device=str(device),
             batch_size=args.batch_size,
@@ -157,7 +142,7 @@ def main() -> None:
         )
         feature_stats = provenance["features"]
         source = provenance["prediction_outputs"].get("checkpoint_path", args.checkpoint)
-        evaluated_input, truth_input = args.faa_dir, args.truth_data
+        evaluated_input = truth_input = args.data
     else:
         features_manager, _ = extract_features_in_memory(
             input_json=args.data,
@@ -187,6 +172,10 @@ def main() -> None:
     print(f"Counts: {counts}")
     print(f"Online features: {feature_stats['total_features']} ORFs, dim={feature_stats['embedding_dim']}")
     reported_metrics = report_metrics(metrics)
+    if args.task == "localization":
+        for cutoff, values in provenance["region_metrics"].items():
+            print(f"Nucleotide regions (IoU={cutoff}): " + " | ".join(
+                f"{key}={values[key]:.3f}" for key in ('precision', 'recall', 'f1', 'avg_iou')))
 
     if output_path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -209,6 +198,9 @@ def main() -> None:
         }
         if args.task == "type":
             payload["metric_scope"] = "matched_only"
+        else:
+            payload["region_metrics"] = provenance["region_metrics"]
+            payload["region_counts"] = provenance["region_counts"]
         output_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
         print(f"Metrics JSON: {output_path}")
 

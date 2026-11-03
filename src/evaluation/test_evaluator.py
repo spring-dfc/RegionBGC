@@ -36,78 +36,36 @@ def _load_labeled_samples(data_file: str) -> List[Dict[str, Any]]:
 
 
 def _sample_labels(sample: Dict[str, Any], expected: int) -> List[float]:
-    values = sample.get("bgc_labels", [])
-    if isinstance(values, str):
-        values = json.loads(values)
-    labels = [float(value) for value in values]
-    if len(labels) != expected:
-        raise ValueError(
-            f"Label/ORF length mismatch for {sample.get('genome_id')}: "
-            f"labels={len(labels)} orfs={expected}"
-        )
-    return labels
+    return parse_binary_labels(sample.get("bgc_labels"), expected,
+                               context=f"Sample {sample.get('genome_id')}")
 
 
-def prepare_localization_dataset(
-    *, faa_dir: str, truth_file: str, output_json: str,
-    converter: Callable[[str, str], str],
-) -> Dict[str, Any]:
-    """Convert protein FASTAs with the active engine and build an explicit truth ID map."""
-    faa_root = Path(faa_dir).expanduser().resolve()
-    if not faa_root.is_dir():
-        raise FileNotFoundError(f"Localization FAA directory not found: {faa_root}")
-    output_path = Path(output_json).expanduser().resolve()
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    fragment_dir = output_path.parent / "converted_fragments"
-    fragment_dir.mkdir(parents=True, exist_ok=True)
-    truth_samples = _load_labeled_samples(truth_file)
-    truth_by_genome = {str(sample.get("genome_id")): sample for sample in truth_samples}
-    faa_files = sorted(path for path in faa_root.iterdir() if path.is_file() and path.suffix.lower() in {".fa", ".faa", ".fasta"})
-    if not faa_files:
-        raise FileNotFoundError(f"No protein FASTA files found in: {faa_root}")
-    stems = {path.stem for path in faa_files}
-    expected_stems = set(truth_by_genome)
-    if stems != expected_stems:
-        raise ValueError(
-            f"FAA/truth genome mismatch: missing={sorted(expected_stems - stems)}, "
-            f"extra={sorted(stems - expected_stems)}"
-        )
-    combined: List[Dict[str, Any]] = []
-    prediction_to_truth: Dict[str, str] = {}
-    for faa_path in faa_files:
-        converted_path = fragment_dir / f"{faa_path.stem}.json"
-        actual_path = Path(converter(str(faa_path), str(converted_path))).resolve()
-        converted = _load_labeled_samples(str(actual_path))
-        truth = truth_by_genome[faa_path.stem]
-        truth_ids = sample_orf_ids(truth)
-        truth_sequences = truth.get("orf_sequences", {})
-        converted_pairs: List[Tuple[str, str]] = []
-        for sample in converted:
-            sequences = sample.get("orf_sequences", {})
-            if not isinstance(sequences, dict):
-                raise ValueError(f"Converted sample lacks orf_sequences: {faa_path.name}")
-            converted_pairs.extend((str(key), str(value)) for key, value in sequences.items())
-        if len(converted_pairs) != len(truth_ids):
-            raise ValueError(
-                f"Converted/truth ORF count mismatch for {faa_path.stem}: "
-                f"converted={len(converted_pairs)} truth={len(truth_ids)}"
-            )
-        for (prediction_id, sequence), truth_id in zip(converted_pairs, truth_ids):
-            if isinstance(truth_sequences, dict) and sequence != str(truth_sequences[truth_id]):
-                raise ValueError(
-                    f"Converted ORF order/sequence mismatch for {faa_path.stem}: "
-                    f"prediction={prediction_id} truth={truth_id}"
-                )
-            written_id = prediction_id.split(":", 1)[-1]
-            if written_id in prediction_to_truth:
-                raise ValueError(f"Duplicate deployed ORF ID after output normalization: {written_id}")
-            prediction_to_truth[written_id] = truth_id
-        combined.extend(converted)
-    output_path.write_text(json.dumps(combined, indent=2, ensure_ascii=False), encoding="utf-8")
+def _prepare_localization_json(data_file: str) -> Dict[str, Any]:
+    """Validate labeled proteins and preserve their prediction-to-truth IDs."""
+    path = Path(data_file).expanduser().resolve()
+    samples = _load_labeled_samples(str(path))
+    if not samples:
+        raise ValueError("No localization samples found")
+    prediction_to_truth = {}
+    for sample in samples:
+        ids = sample_orf_ids(sample)
+        _sample_labels(sample, len(ids))
+        positions = sample.get("orf_positions")
+        if isinstance(positions, str):
+            positions = json.loads(positions)
+        if not isinstance(positions, list) or len(positions) != len(ids):
+            raise ValueError(f"{sample.get('genome_id')}: missing or mismatched orf_positions")
+        for orf_id, position in zip(ids, positions):
+            if not isinstance(position, (list, tuple)) or len(position) != 2:
+                raise ValueError(f"Invalid nucleotide coordinates for {orf_id}: {position}")
+            written_id = orf_id.split(":", 1)[-1]
+            if not written_id or written_id in prediction_to_truth:
+                raise ValueError(f"Duplicate or empty localization ORF ID: {written_id}")
+            prediction_to_truth[written_id] = orf_id
     return {
-        "dataset_json": str(output_path), "prediction_to_truth_orf": prediction_to_truth,
-        "fragments": len(truth_samples),
-        "genomes": len({base_genome_id(str(sample.get("genome_id"))) for sample in truth_samples}),
+        "dataset_json": str(path), "prediction_to_truth_orf": prediction_to_truth,
+        "fragments": len(samples),
+        "genomes": len({base_genome_id(str(sample.get("genome_id"))) for sample in samples}),
         "orfs": len(prediction_to_truth),
     }
 
@@ -169,12 +127,10 @@ def evaluate_deployed_localization(
     *,
     config: str,
     checkpoint: str,
-    faa_dir: str,
-    truth_file: str,
+    data_file: str,
     esmc_checkpoint: str,
     work_dir: str,
     extract_features: Callable[..., Tuple[Any, Any]],
-    converter: Callable[[str, str], str],
     run_prediction: Callable[..., Dict[str, str]],
     device: str,
     batch_size: int = 32,
@@ -186,15 +142,10 @@ def evaluate_deployed_localization(
     overlap_ratio: float = 0.5,
     type_threshold: float = 0.5,
 ) -> Tuple[Dict[str, float], Dict[str, int], Dict[str, Any]]:
-    """Run the active engine's deployed protein-to-prediction localization path."""
+    """Predict labeled JSON proteins once and evaluate genes and nucleotide regions."""
+    prepared = _prepare_localization_json(data_file)
     work_path = Path(work_dir).expanduser().resolve()
     work_path.mkdir(parents=True, exist_ok=True)
-    prepared = prepare_localization_dataset(
-        faa_dir=faa_dir,
-        truth_file=truth_file,
-        output_json=str(work_path / "prediction_dataset.json"),
-        converter=converter,
-    )
     features_manager, _ = extract_features(
         input_json=prepared["dataset_json"],
         device=str(device),
@@ -225,15 +176,20 @@ def evaluate_deployed_localization(
         raise RuntimeError("Deployed predictor did not return an ORF prediction artifact")
     metrics, counts = score_localization_output(
         prediction_file=prediction_file,
-        truth_file=truth_file,
+        truth_file=prepared["dataset_json"],
         prediction_to_truth_orf=prepared["prediction_to_truth_orf"],
         threshold=threshold,
+    )
+    region_metrics, region_counts = evaluate_region_output(
+        prediction_file=prediction_file, truth_file=prepared["dataset_json"],
     )
     provenance = {
         "dataset_json": prepared["dataset_json"],
         "prepared": {key: prepared[key] for key in ("genomes", "fragments", "orfs")},
         "features": features_manager.get_stats(),
         "prediction_outputs": {key: str(value) for key, value in prediction_outputs.items()},
+        "region_metrics": region_metrics,
+        "region_counts": region_counts,
     }
     return metrics, counts, provenance
 
