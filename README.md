@@ -68,8 +68,7 @@ python tools/train.py \
   --val-data data/validation.json --val-features data/validation.h5 \
   --output-dir outputs/training
 ```
-
-Each epoch saves prediction weights; `resume_latest.pth` supports resuming training
+`resume_latest.pth` supports resuming training
 with `--resume`. 
 ## License
 
