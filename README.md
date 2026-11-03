@@ -47,7 +47,8 @@ is set; failed verification retains it for inspection. Use `--help` to view opti
 
 ## Training
 
-Place JSON datasets in `data/`, with `genome_id`, ordered `orf_sequences`,
+Place `train.json`, `validation.json`, `test.json`, and `test_9genomes.json`
+(nine-genome test set) in `data/`, with `genome_id`, ordered `orf_sequences`,
 per-gene `bgc_labels`, and `bgc_class` labels. Extract `.h5` features locally
 before training:
 
@@ -59,7 +60,8 @@ for split in train validation; do
 done
 ```
 
-Use the same command with `test.json` to prepare test features when needed.
+Use the same command for `test.json` or `test_9genomes.json` when needed,
+saving features as `test.h5` or `test_9genomes.h5`, respectively.
 
 ```bash
 python tools/train.py \
