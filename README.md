@@ -20,10 +20,12 @@ conda install -c conda-forge -c bioconda prodigal
 
 The commands above use CUDA 12.4. Install the appropriate PyTorch build for your system.
 
-## Model weights
+## Data and model weights
 
-Place the RegionBGC checkpoint downloaded from the project website at
-`weights/regionbgc.pth`.
+Download the datasets and trained models from [Zenodo](https://doi.org/10.5281/zenodo.23909812).
+Extract `BGC_dataset.rar` and place the JSON files in `data/`.
+Place `regionbgc.pth` (ESMC) and `regionbgc_esm2.pth` (ESM2) in `weights/`.
+
 Download the [ESMC-300M weights](https://huggingface.co/EvolutionaryScale/esmc-300m-2024-12)
 and place `esmc_300m_2024_12_v0.pth` in `weights/`.
 
